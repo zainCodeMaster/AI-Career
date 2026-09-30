@@ -1,0 +1,112 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          DEFAULT: '#0066cc',
+          light: '#e6f2ff',
+          dark: '#004c99',
+        },
+        secondary: {
+          DEFAULT: '#666666',
+          light: '#f5f5f5',
+          dark: '#333333',
+        },
+        success: {
+          DEFAULT: '#00cc66',
+          light: '#e6fff2',
+          dark: '#00994d',
+        },
+        warning: {
+          DEFAULT: '#ffcc00',
+          light: '#fff9e6',
+          dark: '#b38f00',
+        },
+        error: {
+          DEFAULT: '#cc0000',
+          light: '#ffe6e6',
+          dark: '#990000',
+        },
+        info: {
+          DEFAULT: '#0066cc',
+          light: '#e6f2ff',
+          dark: '#004c99',
+        },
+        neutral: {
+          50: '#fafafa',
+          100: '#f5f5f5',
+          200: '#e5e7eb',
+          300: '#d1d5db',
+          400: '#9ca3af',
+          500: '#6b7280',
+          600: '#4b5563',
+          700: '#374151',
+          800: '#1f2937',
+          900: '#111827',
+        },
+        surface: {
+          DEFAULT: '#ffffff',
+          elevated: '#ffffff',
+          muted: '#f9fafb',
+          overlay: 'rgba(0, 0, 0, 0.5)',
+        },
+        status: {
+          saved: '#6b7280',
+          ready_to_apply: '#3b82f6',
+          applied: '#8b5cf6',
+          application_viewed: '#6366f1',
+          screening: '#f59e0b',
+          interview: '#f97316',
+          technical_interview: '#ef4444',
+          final_interview: '#dc2626',
+          offer: '#10b981',
+          accepted: '#059669',
+          rejected: '#ef4444',
+          withdrawn: '#9ca3af',
+          expired: '#6b7280',
+          on_hold: '#f59e0b',
+        },
+      },
+      spacing: {
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+      },
+      borderRadius: {
+        'sm': '4px',
+        'DEFAULT': '6px',
+        'md': '8px',
+        'lg': '12px',
+        'xl': '16px',
+        'full': '9999px',
+      },
+      boxShadow: {
+        'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'DEFAULT': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
+        'md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+        'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+      },
+      fontSize: {
+        'display': ['2.25rem', { lineHeight: '2.5rem', fontWeight: '700' }],
+        'h1': ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
+        'h2': ['1.25rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+        'h3': ['1rem', { lineHeight: '1.5rem', fontWeight: '600' }],
+        'body': ['0.875rem', { lineHeight: '1.5rem' }],
+        'body-sm': ['0.8125rem', { lineHeight: '1.25rem' }],
+        'label': ['0.75rem', { lineHeight: '1rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }],
+        'caption': ['0.6875rem', { lineHeight: '1rem', color: '#6b7280' }],
+        'metadata': ['0.75rem', { lineHeight: '1rem', color: '#6b7280' }],
+        'numeric': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '600', fontVariantNumeric: 'tabular-nums' }],
+      },
+      maxWidth: {
+        'content': '80rem',
+        'narrow': '60rem',
+      },
+    },
+  },
+  plugins: [],
+}

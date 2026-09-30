@@ -1,0 +1,90 @@
+from app.db.models.user import User
+from app.db.models.refresh_token import RefreshToken
+from app.db.models.audit_log import AuditLog
+from app.db.models.career_profile import CareerProfile
+from app.db.models.education import Education
+from app.db.models.work_experience import WorkExperience
+from app.db.models.skill import Skill
+from app.db.models.certification import Certification
+from app.db.models.career_brain import CareerBrainChunk
+from app.db.models.jobs import (
+    Job,
+    JobDiscoveryRun,
+    JobExternalReference,
+    JobSource,
+    UserJobPreferences,
+    UserSavedJob,
+)
+from app.db.models.resume import Resume, ResumeSection, ResumeType, ResumeStatus
+from app.db.models.crm import (
+    Application,
+    ApplicationActivity,
+    ApplicationContact,
+    ApplicationDocument,
+    AutomationState,
+    Contact,
+    ContactRole,
+    FollowUp,
+    FollowUpStatus,
+    Interview,
+    InterviewOutcome,
+    InterviewStatus,
+    InterviewType,
+    Offer,
+    OfferStatus,
+    Recommendation,
+    Rejection,
+    Company,
+    UserCompanyLink,
+    ApplicationPriority,
+    ApplicationSource,
+    ApplicationStatus,
+    ActivityEventType,
+    ActorType,
+)
+
+__all__ = [
+    "User",
+    "RefreshToken",
+    "AuditLog",
+    "CareerProfile",
+    "Education",
+    "WorkExperience",
+    "Skill",
+    "Certification",
+    "CareerBrainChunk",
+    "Job",
+    "JobDiscoveryRun",
+    "JobExternalReference",
+    "JobSource",
+    "UserJobPreferences",
+    "UserSavedJob",
+    "Resume",
+    "ResumeSection",
+    "ResumeType",
+    "ResumeStatus",
+    "Company",
+    "UserCompanyLink",
+    "Application",
+    "ApplicationActivity",
+    "ApplicationDocument",
+    "Contact",
+    "ApplicationContact",
+    "Interview",
+    "FollowUp",
+    "Offer",
+    "Rejection",
+    "Recommendation",
+    "AutomationState",
+    "ApplicationPriority",
+    "ApplicationSource",
+    "ApplicationStatus",
+    "ActivityEventType",
+    "ActorType",
+    "ContactRole",
+    "FollowUpStatus",
+    "InterviewStatus",
+    "InterviewOutcome",
+    "InterviewType",
+    "OfferStatus",
+]

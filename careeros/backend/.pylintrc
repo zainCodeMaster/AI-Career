@@ -1,0 +1,30 @@
+[MASTER]
+# Specify a configuration file
+ignore=CVS,migrations,__pycache__,tests
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-function-docstring,
+    missing-class-docstring,
+    too-few-public-methods,
+    duplicate-code,
+
+[FORMAT]
+max-line-length=100
+indent-string='    '
+
+[DESIGN]
+max-attributes=10
+max-arguments=6
+
+[VARIABLES]
+# Ignore short variable names
+ignored-argument-names=_.*
+
+[LOGGING]
+logging-format-style=new
+
+[BASIC]
+# Good variable names which should always be accepted, separated by a comma
+good-names=i,j,k,ex,Run,_,id,x,y,z,df
