@@ -63,6 +63,78 @@ class CareerProfileService:
         return db.query(CareerProfile).filter(CareerProfile.user_id == user_id).first()
 
     @staticmethod
+    def calculate_completeness(db: Session, user_id: UUID) -> int:
+        """Calculate career profile completeness score (0-100)."""
+        profile = CareerProfileService.get_profile(db, user_id)
+        if not profile:
+            return 0
+
+        score = 0
+
+        # Profile fields (50 points total)
+        if profile.professional_title:
+            score += 10
+        if profile.summary:
+            score += 10
+        if profile.location:
+            score += 5
+        if profile.linkedin_url:
+            score += 5
+        if profile.github_url:
+            score += 5
+        if profile.years_of_experience is not None:
+            score += 5
+        if profile.preferred_job_title:
+            score += 5
+        if profile.preferred_location:
+            score += 5
+
+        # Education (15 points)
+        educations = EducationService.get_user_education(db, user_id)
+        if educations:
+            score += 15
+
+        # Experience (20 points)
+        experiences = WorkExperienceService.get_user_work_experience(db, user_id)
+        if experiences:
+            score += 20
+
+        # Skills (10 points)
+        skills = SkillService.get_user_skills(db, user_id)
+        if skills:
+            score += 10
+
+        return min(score, 100)
+
+    @staticmethod
+    def get_profile_with_completeness(db: Session, user_id: UUID) -> Optional[dict]:
+        """Get career profile with completeness score."""
+        profile = CareerProfileService.get_profile(db, user_id)
+        if not profile:
+            return None
+
+        score = CareerProfileService.calculate_completeness(db, user_id)
+
+        return {
+            "id": str(profile.id),
+            "user_id": str(profile.user_id),
+            "professional_title": profile.professional_title,
+            "summary": profile.summary,
+            "phone": profile.phone,
+            "location": profile.location,
+            "linkedin_url": str(profile.linkedin_url) if profile.linkedin_url else None,
+            "github_url": str(profile.github_url) if profile.github_url else None,
+            "portfolio_url": str(profile.portfolio_url) if profile.portfolio_url else None,
+            "years_of_experience": profile.years_of_experience,
+            "preferred_job_title": profile.preferred_job_title,
+            "preferred_location": profile.preferred_location,
+            "remote_preference": profile.remote_preference,
+            "created_at": profile.created_at,
+            "updated_at": profile.updated_at,
+            "completeness_score": score,
+        }
+
+    @staticmethod
     def update_profile(db: Session, user_id: UUID, update_data: CareerProfileUpdate) -> Optional[CareerProfile]:
         """Update career profile."""
         profile = db.query(CareerProfile).filter(CareerProfile.user_id == user_id).first()

@@ -3,6 +3,7 @@
 - POST /api/v1/career-brain/index   — rebuild the authenticated user's index
 - POST /api/v1/career-brain/search  — user-scoped semantic search
 - POST /api/v1/career-brain/context — RAG-ready context for future LLM
+- POST /api/v1/career-brain/answer  — generate AI answer with RAG
 """
 
 from fastapi import APIRouter, Depends, status
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_active_user, get_db
 from app.db.models.user import User
 from app.schemas.career_brain import (
+    AnswerRequest,
+    AnswerResponse,
     ContextRequest,
     ContextResponse,
     IndexResponse,
@@ -20,6 +23,7 @@ from app.schemas.career_brain import (
 )
 from app.services.audit import create_audit_log
 from app.services.career_brain import (
+    CareerBrainAnswerGenerator,
     CareerBrainIndexer,
     CareerBrainRetriever,
     RAGContextBuilder,
@@ -133,4 +137,53 @@ def build_career_brain_context(
             for c in chunks
         ],
         context=context,
+    )
+
+
+@router.post("/answer", response_model=AnswerResponse, status_code=status.HTTP_200_OK)
+def generate_career_brain_answer(
+    payload: AnswerRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> AnswerResponse:
+    """Generate an AI answer using RAG over the user's career data."""
+    retriever = CareerBrainRetriever()
+    chunks = retriever.search(db, current_user.id, payload.query, payload.top_k)
+
+    context = RAGContextBuilder().build(payload.query, chunks)
+
+    answer_result = CareerBrainAnswerGenerator().generate_answer(
+        query=payload.query,
+        context=context,
+        chunks=chunks,
+    )
+
+    create_audit_log(
+        db,
+        event_type="CAREER_BRAIN_ANSWER_GENERATED",
+        user_id=current_user.id,
+        details={
+            "query_length": len(payload.query),
+            "top_k": payload.top_k,
+            "chunks_used": len(chunks),
+            "model": answer_result.model,
+            "confidence": answer_result.confidence,
+        },
+    )
+
+    return AnswerResponse(
+        query=payload.query,
+        answer=answer_result.answer,
+        sources=[
+            AnswerSource(
+                id=c.id,
+                source_type=c.source_type,
+                title=c.title,
+                score=c.score,
+            )
+            for c in answer_result.sources
+        ],
+        model=answer_result.model,
+        confidence=answer_result.confidence,
+        warning=answer_result.warning,
     )

@@ -186,7 +186,16 @@ class CompanyCareerSource(BaseJobSource):
             posted_at=posted_at,
             closing_at=closing_at,
             is_remote=False,
-            is_pakistan_eligible=True,
+            eligibility=self._determine_eligibility({
+                "country": location or "" if location else "",
+                "workplace_type": "onsite",
+                "description": description or "",
+            })[0],
+            eligibility_reason=self._determine_eligibility({
+                "country": location or "" if location else "",
+                "workplace_type": "onsite",
+                "description": description or "",
+            })[1],
         )
 
     def fetch(self, *, max_results: int = 200, timeout: float = 20.0) -> list[RawJob]:
@@ -232,3 +241,39 @@ class CompanyCareerSource(BaseJobSource):
             if title:
                 jobs.append({"title": title, "description": clean_text(item.get_text())})
         return jobs
+
+    def _determine_eligibility(self, job_data: dict) -> tuple[str, str]:
+        """Determine Pakistan eligibility based on job location and restrictions.
+
+        Returns (eligibility_status, reason) where status is one of:
+        - "eligible": Pakistan applicants are accepted or no restrictions
+        - "ineligible": Work authorization/visa restrictions prevent Pakistani applicants
+        - "unknown": Insufficient information to determine
+        """
+        # Check country field
+        country = job_data.get("country", "") or ""
+        if country:
+            country_upper = country.upper()
+            if country_upper == "PK":
+                return "eligible", "Country is Pakistan"
+            restricted_countries = {"US", "CA", "GB", "AU"}
+            if country_upper in restricted_countries:
+                return "ineligible", f"Country restriction: {country} applicants not accepted"
+            return "unknown", f"Country restriction: {country}"
+        
+        # Check workplace type
+        workplace_type = job_data.get("workplace_type", "") or ""
+        if workplace_type == "remote":
+            location = job_data.get("location", "") or ""
+            location_upper = location.upper()
+            if any(loc in location_upper for loc in ["USA", "CA", "GB", "AU"]):
+                return "ineligible", f"Remote position restricted to {location}"
+            return "eligible", "Remote worldwide"
+        
+        # Check description for Pakistan eligibility
+        description = job_data.get("description", "") or ""
+        desc_lower = description.lower()
+        if "pakistan applicants" in desc_lower or "open to pk" in desc_lower:
+            return "eligible", "Explicit Pakistan applicants accepted"
+        
+        return "unknown", "Eligibility cannot be determined from available data"

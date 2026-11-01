@@ -1,4 +1,5 @@
 import type { JobSummary } from './jobs';
+import { apiClient } from './client';
 
 export interface MatchBreakdown {
   skills: number;
@@ -39,26 +40,15 @@ export interface MatchFeedResponse {
   profile_completeness: string;
 }
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
-
-async function request<T>(path: string): Promise<T> {
-  const token = localStorage.getItem('careeros_token');
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`);
-  return (await response.json()) as T;
-}
-
 export const MatchingApi = {
   list(params: { page?: number; page_size?: number; min_score?: number } = {}) {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) query.set(key, String(value));
     });
-    return request<MatchFeedResponse>(`/jobs/matches?${query.toString()}`);
+    return apiClient.get<MatchFeedResponse>(`/jobs/matches?${query.toString()}`);
   },
   detail(jobId: string) {
-    return request<JobMatch>(`/jobs/${encodeURIComponent(jobId)}/match`);
+    return apiClient.get<JobMatch>(`/jobs/${encodeURIComponent(jobId)}/match`);
   },
 };

@@ -19,6 +19,7 @@ Safety:
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -47,7 +48,14 @@ class DiscoveryScheduler:
 
     def __init__(self) -> None:
         self._scheduler: Optional[BackgroundScheduler] = None
-        self._running: bool = False
+        self._scheduler_started: bool = False
+        self._run_in_progress: bool = False
+        self._run_lock = threading.Lock()
+        self._last_run_at: Optional[datetime] = None
+        self._last_run_duration_ms: Optional[int] = None
+        self._last_run_status: Optional[str] = None
+        self._last_run_error: Optional[str] = None
+        self._next_run_at: Optional[datetime] = None
         self._settings = get_settings()
 
     @property
@@ -60,7 +68,31 @@ class DiscoveryScheduler:
 
     @property
     def running(self) -> bool:
-        return self._running
+        return self._scheduler_started
+
+    @property
+    def run_in_progress(self) -> bool:
+        return self._run_in_progress
+
+    @property
+    def last_run_at(self) -> Optional[datetime]:
+        return self._last_run_at
+
+    @property
+    def last_run_duration_ms(self) -> Optional[int]:
+        return self._last_run_duration_ms
+
+    @property
+    def last_run_status(self) -> Optional[str]:
+        return self._last_run_status
+
+    @property
+    def last_run_error(self) -> Optional[str]:
+        return self._last_run_error
+
+    @property
+    def next_run_at(self) -> Optional[datetime]:
+        return self._next_run_at
 
     def start(self) -> None:
         """Start the background scheduler if enabled."""
@@ -93,34 +125,66 @@ class DiscoveryScheduler:
         )
 
         self._scheduler.start()
-        self._running = True
+        self._scheduler_started = True
+        self._update_next_run_time()
         logger.info(
             "Discovery scheduler started (interval=%dm)",
             self.interval_minutes,
         )
+
+    def _update_next_run_time(self) -> None:
+        """Update the next scheduled run time."""
+        if self._scheduler:
+            job = self._scheduler.get_job("job_discovery")
+            if job and job.next_run_time:
+                self._next_run_at = job.next_run_time
+            else:
+                self._next_run_at = None
+        else:
+            self._next_run_at = None
 
     def shutdown(self) -> None:
         """Shut down the background scheduler."""
         if self._scheduler is not None:
             self._scheduler.shutdown(wait=False)
             self._scheduler = None
-        self._running = False
+        self._scheduler_started = False
+        self._run_in_progress = False
+        self._next_run_at = None
         logger.info("Discovery scheduler shut down")
 
     def _run_discovery(self) -> None:
-        """Run discovery in its own DB session (background job)."""
-        if self._running:
-            # This shouldn't happen since max_instances=1, but guard anyway
+        """Run discovery in its own DB session (background job).
+        
+        Uses a threading lock to prevent concurrent runs. 
+        APScheduler's max_instances=1 also helps, but this provides 
+        an additional safety layer and proper state tracking.
+        """
+        # Check if a run is already in progress (fast path for tests and manual checks)
+        if self._run_in_progress:
             logger.warning("Discovery run already in progress, skipping")
             return
 
-        self._running = True
+        # Try to acquire lock (non-blocking)
+        if not self._run_lock.acquire(blocking=False):
+            logger.warning("Discovery run already in progress (lock), skipping")
+            return
+
+        self._run_in_progress = True
         run_id = str(uuid.uuid4())
+        started_at = datetime.now(timezone.utc)
+        self._last_run_at = started_at
+        self._last_run_status = "running"
+        self._last_run_error = None
         logger.info("Starting scheduled discovery run (id=%s)", run_id)
 
         db: Session = SessionLocal()
         try:
             stats = job_discovery.discover_all_enabled(db)
+            completed_at = datetime.now(timezone.utc)
+            duration_ms = int((completed_at - started_at).total_seconds() * 1000)
+            self._last_run_duration_ms = duration_ms
+            self._last_run_status = "success"
             logger.info(
                 "Discovery run %s completed: %d sources attempted, %d succeeded, "
                 "%d failed, %d jobs created, %d updated",
@@ -132,9 +196,16 @@ class DiscoveryScheduler:
                 stats.jobs_updated,
             )
         except Exception as exc:
+            completed_at = datetime.now(timezone.utc)
+            duration_ms = int((completed_at - started_at).total_seconds() * 1000)
+            self._last_run_duration_ms = duration_ms
+            self._last_run_status = "failed"
+            self._last_run_error = str(exc)
             logger.error("Discovery run %s failed: %s", run_id, exc, exc_info=True)
         finally:
-            self._running = False
+            self._run_in_progress = False
+            self._run_lock.release()
+            self._update_next_run_time()
             db.close()
 
     def _on_job_executed(self, event) -> None:
@@ -143,6 +214,7 @@ class DiscoveryScheduler:
             getattr(event, "job_id", "?"),
             getattr(event, "duration", 0),
         )
+        self._update_next_run_time()
 
     def _on_job_error(self, event) -> None:
         logger.error(
@@ -150,12 +222,14 @@ class DiscoveryScheduler:
             getattr(event, "job_id", "?"),
             getattr(event, "exception", "unknown"),
         )
+        self._update_next_run_time()
 
     def _on_job_missed(self, event) -> None:
         logger.warning(
             "Discovery job missed schedule (run_id=%s)",
             getattr(event, "job_id", "?"),
         )
+        self._update_next_run_time()
 
 
 # ---------------------------------------------------------------------------

@@ -1,3 +1,5 @@
+import { apiClient } from './client';
+
 export interface CareerBrainSearchResult {
   id: string;
   source_type: string;
@@ -24,36 +26,38 @@ export interface CareerBrainIndexResponse {
   embedding_model: string;
 }
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
+export interface CareerBrainAnswerSource {
+  id: string;
+  source_type: string;
+  title: string | null;
+  score: number;
+}
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('careeros_token');
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers || {}),
-    },
-  });
-  if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`);
-  return (await response.json()) as T;
+export interface CareerBrainAnswerRequest {
+  query: string;
+  top_k: number;
+}
+
+export interface CareerBrainAnswerResponse {
+  query: string;
+  answer: string;
+  sources: CareerBrainAnswerSource[];
+  model: string;
+  confidence: 'high' | 'medium' | 'low';
+  warning: string | null;
 }
 
 export const CareerBrainApi = {
   search(query: string, top_k = 5) {
-    return request<CareerBrainSearchResponse>('/career-brain/search', {
-      method: 'POST',
-      body: JSON.stringify({ query, top_k }),
-    });
+    return apiClient.post<CareerBrainSearchResponse, { query: string; top_k: number }>('/career-brain/search', { query, top_k });
   },
   context(query: string, top_k = 5) {
-    return request<CareerBrainContextResponse>('/career-brain/context', {
-      method: 'POST',
-      body: JSON.stringify({ query, top_k }),
-    });
+    return apiClient.post<CareerBrainContextResponse, { query: string; top_k: number }>('/career-brain/context', { query, top_k });
   },
   index() {
-    return request<CareerBrainIndexResponse>('/career-brain/index', { method: 'POST' });
+    return apiClient.post<CareerBrainIndexResponse, {}>('/career-brain/index', {});
+  },
+  answer(query: string, top_k = 5) {
+    return apiClient.post<CareerBrainAnswerResponse, { query: string; top_k: number }>('/career-brain/answer', { query, top_k });
   },
 };

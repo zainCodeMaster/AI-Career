@@ -20,6 +20,7 @@ import { JobDiscoveryPage } from "./pages/JobDiscoveryPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
 export default function App() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/crm" element={<CRMWorkspacePage />} />
           </Route>
         </Route>
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AuthProvider>
   );

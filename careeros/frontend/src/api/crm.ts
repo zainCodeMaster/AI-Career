@@ -377,28 +377,7 @@ export interface ActivityFeedResponse {
   page_size: number;
 }
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:8000/api/v1";
-
-function getToken(): string | null {
-  if (typeof localStorage === "undefined") return null;
-  return localStorage.getItem("careeros_token");
-}
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(init.headers as Record<string, string> | undefined),
-  };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
-  }
-  if (res.status === 204) return undefined as unknown as T;
-  return (await res.json()) as T;
-}
+import { apiClient } from './client';
 
 export const CrmApi = {
   // Applications
@@ -408,31 +387,22 @@ export const CrmApi = {
       if (v === undefined || v === null || v === "") continue;
       qs.set(k, String(v));
     }
-    return request<ApplicationListResponse>(`/applications?${qs.toString()}`);
+    return apiClient.get<ApplicationListResponse>(`/applications?${qs.toString()}`);
   },
   getApplication(id: string) {
-    return request<ApplicationResponse>(`/applications/${id}`);
+    return apiClient.get<ApplicationResponse>(`/applications/${id}`);
   },
   createApplication(data: ApplicationCreate) {
-    return request<ApplicationResponse>(`/applications`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return apiClient.post<ApplicationResponse, ApplicationCreate>(`/applications`, data);
   },
   updateApplication(id: string, data: ApplicationUpdate) {
-    return request<ApplicationResponse>(`/applications/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    return apiClient.patch<ApplicationResponse, ApplicationUpdate>(`/applications/${id}`, data);
   },
   deleteApplication(id: string) {
-    return request<void>(`/applications/${id}`, { method: "DELETE" });
+    return apiClient.delete<void>(`/applications/${id}`);
   },
   transitionApplication(id: string, data: ApplicationTransitionRequest) {
-    return request<ApplicationTransitionResponse>(`/applications/${id}/transitions`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return apiClient.post<ApplicationTransitionResponse, ApplicationTransitionRequest>(`/applications/${id}/transitions`, data);
   },
   getApplicationTimeline(id: string, params: Record<string, any> = {}) {
     const qs = new URLSearchParams();
@@ -440,71 +410,62 @@ export const CrmApi = {
       if (v === undefined || v === null || v === "") continue;
       qs.set(k, String(v));
     }
-    return request<ActivityFeedResponse>(`/applications/${id}/timeline?${qs.toString()}`);
+    return apiClient.get<ActivityFeedResponse>(`/applications/${id}/timeline?${qs.toString()}`);
   },
   getApplicationOffer(id: string) {
-    return request<OfferResponse | null>(`/applications/${id}/offer`);
+    return apiClient.get<OfferResponse | null>(`/applications/${id}/offer`);
   },
   upsertApplicationOffer(id: string, data: Record<string, any>) {
-    return request<OfferResponse>(`/applications/${id}/offer`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+    return apiClient.put<OfferResponse, Record<string, any>>(`/applications/${id}/offer`, data);
   },
   createApplicationDocument(id: string, data: { document_type: string; file_url?: string | null; file_name?: string | null; file_size?: number | null; mime_type?: string | null; document_metadata?: Record<string, unknown> | null }) {
-    return request<ApplicationDocumentResponse>(`/applications/${id}/documents`, { method: "POST", body: JSON.stringify(data) });
+    return apiClient.post<ApplicationDocumentResponse, { document_type: string; file_url?: string | null; file_name?: string | null; file_size?: number | null; mime_type?: string | null; document_metadata?: Record<string, unknown> | null }>(`/applications/${id}/documents`, data);
   },
   deleteApplicationDocument(id: string) {
-    return request<void>(`/applications/documents/${id}`, { method: "DELETE" });
+    return apiClient.delete<void>(`/applications/documents/${id}`);
   },
   getStateMachineInfo(status?: string) {
     const qs = status ? `?status=${encodeURIComponent(status)}` : "";
-    return request<StateMachineInfoResponse>(`/applications/state-machine${qs}`);
+    return apiClient.get<StateMachineInfoResponse>(`/applications/state-machine${qs}`);
   },
 
   // Dashboard / Pipeline / Analytics
   getDashboardStats() {
-    return request<ApplicationStatsResponse>(`/crm/dashboard`);
+    return apiClient.get<ApplicationStatsResponse>(`/crm/dashboard`);
   },
   getPipeline() {
-    return request<PipelineResponse>(`/crm/pipeline`);
+    return apiClient.get<PipelineResponse>(`/crm/pipeline`);
   },
   getAnalytics() {
-    return request<FunnelResponse>(`/crm/analytics`);
+    return apiClient.get<FunnelResponse>(`/crm/analytics`);
   },
 
   // Companies
   listCompanies() {
-    return request<CompanyResponse[]>(`/companies`);
+    return apiClient.get<CompanyResponse[]>(`/companies`);
   },
   createCompany(data: { name: string; website?: string | null; industry?: string | null; location?: string | null; size?: string | null; description?: string | null; logo_url?: string | null }) {
-    return request<CompanyResponse>(`/companies`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return apiClient.post<CompanyResponse, { name: string; website?: string | null; industry?: string | null; location?: string | null; size?: string | null; description?: string | null; logo_url?: string | null }>(`/companies`, data);
   },
   updateCompany(id: string, data: Record<string, unknown>) {
-    return request<CompanyResponse>(`/companies/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+    return apiClient.patch<CompanyResponse, Record<string, unknown>>(`/companies/${id}`, data);
   },
   deleteCompany(id: string) {
-    return request<void>(`/companies/${id}`, { method: "DELETE" });
+    return apiClient.delete<void>(`/companies/${id}`);
   },
 
   // Contacts
   listContacts() {
-    return request<ContactResponse[]>(`/contacts`);
+    return apiClient.get<ContactResponse[]>(`/contacts`);
   },
   createContact(data: { name: string; title?: string | null; email?: string | null; linkedin_url?: string | null; phone?: string | null; notes?: string | null; relationship_status?: string | null; company_id?: string | null }) {
-    return request<ContactResponse>(`/contacts`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return apiClient.post<ContactResponse, { name: string; title?: string | null; email?: string | null; linkedin_url?: string | null; phone?: string | null; notes?: string | null; relationship_status?: string | null; company_id?: string | null }>(`/contacts`, data);
   },
   updateContact(id: string, data: Record<string, unknown>) {
-    return request<ContactResponse>(`/contacts/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+    return apiClient.patch<ContactResponse, Record<string, unknown>>(`/contacts/${id}`, data);
   },
   deleteContact(id: string) {
-    return request<void>(`/contacts/${id}`, { method: "DELETE" });
+    return apiClient.delete<void>(`/contacts/${id}`);
   },
 
   // Interviews
@@ -514,19 +475,16 @@ export const CrmApi = {
       if (v === undefined || v === null || v === "") continue;
       qs.set(k, String(v));
     }
-    return request<InterviewResponse[]>(`/interviews?${qs.toString()}`);
+    return apiClient.get<InterviewResponse[]>(`/interviews?${qs.toString()}`);
   },
   createInterview(data: { application_id: string; interview_type: InterviewType; scheduled_at: string; duration_minutes?: number | null; timezone?: string | null; location_or_meeting_url?: string | null; interviewer_contact_ids?: string[] | null; notes?: string | null; preparation_notes?: string | null; feedback?: string | null }) {
-    return request<InterviewResponse>(`/interviews`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return apiClient.post<InterviewResponse, { application_id: string; interview_type: InterviewType; scheduled_at: string; duration_minutes?: number | null; timezone?: string | null; location_or_meeting_url?: string | null; interviewer_contact_ids?: string[] | null; notes?: string | null; preparation_notes?: string | null; feedback?: string | null }>(`/interviews`, data);
   },
   updateInterview(id: string, data: Record<string, unknown>) {
-    return request<InterviewResponse>(`/interviews/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+    return apiClient.patch<InterviewResponse, Record<string, unknown>>(`/interviews/${id}`, data);
   },
   deleteInterview(id: string) {
-    return request<void>(`/interviews/${id}`, { method: "DELETE" });
+    return apiClient.delete<void>(`/interviews/${id}`);
   },
 
   // Follow-ups
@@ -536,27 +494,24 @@ export const CrmApi = {
       if (v === undefined || v === null || v === "") continue;
       qs.set(k, String(v));
     }
-    return request<FollowUpResponse[]>(`/follow-ups?${qs.toString()}`);
+    return apiClient.get<FollowUpResponse[]>(`/follow-ups?${qs.toString()}`);
   },
   createFollowUp(data: { application_id?: string | null; contact_id?: string | null; follow_up_type: FollowUpType; title: string; notes?: string | null; due_at: string; priority?: string; reminder_at?: string | null }) {
-    return request<FollowUpResponse>(`/follow-ups`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return apiClient.post<FollowUpResponse, { application_id?: string | null; contact_id?: string | null; follow_up_type: FollowUpType; title: string; notes?: string | null; due_at: string; priority?: string; reminder_at?: string | null }>(`/follow-ups`, data);
   },
   updateFollowUp(id: string, data: Record<string, unknown>) {
-    return request<FollowUpResponse>(`/follow-ups/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+    return apiClient.patch<FollowUpResponse, Record<string, unknown>>(`/follow-ups/${id}`, data);
   },
   deleteFollowUp(id: string) {
-    return request<void>(`/follow-ups/${id}`, { method: "DELETE" });
+    return apiClient.delete<void>(`/follow-ups/${id}`);
   },
   completeFollowUp(id: string) {
-    return request<FollowUpResponse>(`/follow-ups/${id}/complete`, { method: "POST" });
+    return apiClient.post<FollowUpResponse, {}>(`/follow-ups/${id}/complete`, {});
   },
 
   // Recommendations
   listRecommendations(applicationId?: string) {
     const qs = applicationId ? `?application_id=${encodeURIComponent(applicationId)}` : "";
-    return request<RecommendationResponse[]>(`/recommendations${qs}`);
+    return apiClient.get<RecommendationResponse[]>(`/recommendations${qs}`);
   },
 };

@@ -155,6 +155,12 @@ from app.services.sources.private_board import (  # noqa: E402
 # Company career page source
 from app.services.sources.company_career import CompanyCareerSource  # noqa: E402
 
+# International remote sources
+from app.services.sources.international import (  # noqa: E402
+    HimalayasSource,
+    RemoteOKSource,
+)
+
 # Unsupported sources (LinkedIn, Indeed, Google Jobs)
 from app.services.sources.unsupported import (  # noqa: E402
     GoogleJobsSource,
@@ -232,6 +238,9 @@ SOURCE_REGISTRY: dict[str, type[BaseJobSource]] = {
     "pk_rozee": RozeeSource,
     "pk_mustakbil": MustakbilSource,
     "pk_brightspyre": BrightSpyreSource,
+    # International remote sources
+    "remote_ok": RemoteOKSource,
+    "himalayas": HimalayasSource,
     # Company career pages
     "company_template": CompanyCareerSource,
     # Unsupported sources (no authorized integration)

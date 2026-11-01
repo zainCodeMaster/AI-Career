@@ -129,7 +129,7 @@ export function ResumesPage() {
                 <Button onClick={() => navigate(`/resumes/${resume.id}`)} variant="secondary" size="sm">
                   Open
                 </Button>
-                <Button onClick={() => deleteResume(resume.id)} variant="destructive" size="sm">
+                <Button onClick={() => deleteResume(resume.id)} variant="danger" size="sm">
                   Delete
                 </Button>
               </div>

@@ -1050,3 +1050,61 @@ class Recommendation(Base):
     def __repr__(self) -> str:
         return f"<Recommendation(id={self.id}, type={self.recommendation_type}, severity={self.severity})>"
 
+
+# ---------------------------------------------------------------------------
+# Notification
+# ---------------------------------------------------------------------------
+
+
+class NotificationType(str, PyEnum):
+    """Notification type categories."""
+
+    INTERVIEW_REMINDER = "interview_reminder"
+    FOLLOW_UP_REMINDER = "follow_up_reminder"
+    APPLICATION_STATUS_CHANGED = "application_status_changed"
+    JOB_MATCH = "job_match"
+    SYSTEM = "system"
+    CAREER_BRAIN = "career_brain"
+
+
+class Notification(Base):
+    """In-app notification for a user.
+
+    Notifications are user-scoped and user-owned. They carry a title,
+    message, type, read/unread status, and optional deep-link target.
+    """
+
+    __tablename__ = "notifications"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
+    type: Mapped[str] = mapped_column(
+        String(64), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    target_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+    read_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    expires_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        Index("ix_notifications_user_read", "user_id", "read"),
+        Index("ix_notifications_user_created", "user_id", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<Notification(id={self.id}, type={self.type}, read={self.read})>"
+
+

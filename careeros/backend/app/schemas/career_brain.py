@@ -73,3 +73,43 @@ class ContextResponse(BaseModel):
     query: str
     results: list[SearchResultItem]
     context: str
+
+
+# Answer generation schemas
+
+
+class AnswerSource(BaseModel):
+    """Source reference for an answer."""
+
+    id: str
+    source_type: str
+    title: Optional[str] = None
+    score: float
+
+
+class AnswerRequest(BaseModel):
+    """Request for POST /api/v1/career-brain/answer."""
+
+    query: str = Field(..., min_length=1, max_length=500)
+    top_k: int = Field(5, ge=1, le=10)
+
+    @field_validator("query")
+    @classmethod
+    def _strip_query(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("query cannot be empty or whitespace")
+        return v
+
+
+class AnswerResponse(BaseModel):
+    """Response for POST /api/v1/career-brain/answer."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    query: str
+    answer: str
+    sources: list[AnswerSource]
+    model: str
+    confidence: str  # "high" | "medium" | "low"
+    warning: Optional[str] = None

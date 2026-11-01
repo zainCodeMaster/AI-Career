@@ -22,7 +22,7 @@ describe('CareerOS app routing', () => {
       })
     );
 
-    localStorage.setItem('careeros_token', 'token-123');
+    localStorage.setItem('careeros_access_token', 'token-123');
   });
 
   it('renders the career brain page for authenticated users', async () => {

@@ -168,8 +168,8 @@ class TestSchedulerDuplicatePrevention:
             mock_settings.return_value.job_discovery_user_agent = "CareerOS-Bot/1.0"
 
             scheduler = DiscoveryScheduler()
-            scheduler._running = True
+            scheduler._run_in_progress = True
             # Should skip run
             scheduler._run_discovery()
-            assert scheduler.running is True
-            scheduler._running = False
+            assert scheduler.run_in_progress is True
+            scheduler._run_in_progress = False

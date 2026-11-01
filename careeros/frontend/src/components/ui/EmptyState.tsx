@@ -1,18 +1,34 @@
+import { HTMLAttributes, forwardRef } from 'react';
 import { cn } from '../../lib/utils';
 
-interface EmptyStateProps {
+interface EmptyStateProps extends HTMLAttributes<HTMLDivElement> {
   title: string;
   description?: string;
+  icon?: React.ReactNode;
   action?: React.ReactNode;
-  className?: string;
 }
 
-export function EmptyState({ title, description, action, className }: EmptyStateProps) {
-  return (
-    <div className={cn('flex flex-col items-center justify-center gap-3 rounded-md border border-neutral-200 bg-surface-muted p-8 text-center', className)}>
-      <p className="text-h3 text-neutral-900">{title}</p>
-      {description && <p className="text-body text-neutral-500 max-w-md">{description}</p>}
-      {action && <div className="mt-2">{action}</div>}
-    </div>
-  );
-}
+export const EmptyState = forwardRef<HTMLDivElement, EmptyStateProps>(
+  ({ className, title, description, icon, action, children, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn('empty-state', className)}
+        {...props}
+      >
+        {icon && <div className="empty-state-icon" aria-hidden="true">{icon}</div>}
+        {children ? (
+          children
+        ) : (
+          <>
+            <h3 className="empty-state-title">{title}</h3>
+            {description && <p className="empty-state-description">{description}</p>}
+          </>
+        )}
+        {action && <div className="mt-4">{action}</div>}
+      </div>
+    );
+  }
+);
+
+EmptyState.displayName = 'EmptyState';

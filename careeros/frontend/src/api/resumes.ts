@@ -1,9 +1,11 @@
 /**
  * CareerOS API client — Phase 6 Resume Engine.
  *
- * Thin fetch wrapper that talks to the real FastAPI backend.
- * Token is read from localStorage (set by the auth flow).
+ * Uses the centralized API client (src/api/client.ts) for consistent
+ * token handling, auto-refresh, and error handling.
  */
+
+import { apiClient } from './client';
 
 export interface ResumeSummary {
   id: string;
@@ -111,45 +113,6 @@ export interface TailorResponse {
   created_at: string;
 }
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:8000/api/v1";
-
-function getToken(): string | null {
-  if (typeof localStorage === "undefined") return null;
-  return localStorage.getItem("careeros_token");
-}
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(init.headers as Record<string, string> | undefined),
-  };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
-  }
-  if (res.status === 204) return undefined as unknown as T;
-  return (await res.json()) as T;
-}
-
-async function uploadFile<T>(path: string, file: File): Promise<T> {
-  const token = getToken();
-  const body = new FormData();
-  body.append("file", file);
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    body,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
-  }
-  return (await res.json()) as T;
-}
-
 export const ResumesApi = {
   list(params: Record<string, string | number | boolean | undefined> = {}) {
     const qs = new URLSearchParams();
@@ -157,94 +120,71 @@ export const ResumesApi = {
       if (v === undefined || v === null || v === "") continue;
       qs.set(k, String(v));
     }
-    return request<ResumeListResponse>(`/resumes?${qs.toString()}`);
+    return apiClient.get<ResumeListResponse>(`/resumes?${qs.toString()}`);
   },
 
   get(resumeId: string) {
-    return request<ResumeDetail>(`/resumes/${resumeId}`);
+    return apiClient.get<ResumeDetail>(`/resumes/${resumeId}`);
   },
 
   async exportText(resumeId: string) {
-    const token = getToken();
-    const res = await fetch(`${API_BASE}/resumes/${resumeId}/export`, {
-      headers: token ? { Authorization: "Bearer " + token } : {},
+    const token = apiClient.getAccessToken();
+    const res = await fetch(`${apiClient['config'].baseUrl}/resumes/${resumeId}/export`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
     return res.blob();
   },
 
   create(data: { name: string; resume_type?: string; target_job_id?: string }) {
-    return request<ResumeDetail>(`/resumes`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return apiClient.post<ResumeDetail, { name: string; resume_type?: string; target_job_id?: string }>(`/resumes`, data);
   },
 
   update(resumeId: string, data: Partial<{ name: string; status: string; structured_data: Record<string, any> }>) {
-    return request<ResumeDetail>(`/resumes/${resumeId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+    return apiClient.put<ResumeDetail, Partial<{ name: string; status: string; structured_data: Record<string, any> }>>(`/resumes/${resumeId}`, data);
   },
 
   delete(resumeId: string) {
-    return request<void>(`/resumes/${resumeId}`, { method: "DELETE" });
+    return apiClient.delete<void>(`/resumes/${resumeId}`);
   },
 
   buildFromProfile(name: string) {
-    return request<ResumeDetail>(`/resumes/build-from-profile?name=${encodeURIComponent(name)}`, {
-      method: "POST",
-    });
+    return apiClient.post<ResumeDetail, { name: string }>(`/resumes/build-from-profile?name=${encodeURIComponent(name)}`, { name });
   },
 
   importText(resumeId: string, resumeText: string) {
-    return request<ResumeDetail>(`/resumes/${resumeId}/import/text`, {
-      method: "POST",
-      body: JSON.stringify({ resume_text: resumeText }),
-    });
+    return apiClient.post<ResumeDetail, { resume_text: string }>(`/resumes/${resumeId}/import/text`, { resume_text: resumeText });
   },
 
   importFile(resumeId: string, file: File) {
-    return uploadFile<ResumeDetail>(`/resumes/${resumeId}/import/file`, file);
+    return apiClient.uploadFile<ResumeDetail>(`/resumes/${resumeId}/import/file`, file, 'file');
   },
 
   listSections(resumeId: string) {
-    return request<ResumeSection[]>(`/resumes/${resumeId}/sections`);
+    return apiClient.get<ResumeSection[]>(`/resumes/${resumeId}/sections`);
   },
 
   createSection(resumeId: string, section: Partial<ResumeSection>) {
-    return request<ResumeSection>(`/resumes/${resumeId}/sections`, {
-      method: "POST",
-      body: JSON.stringify(section),
-    });
+    return apiClient.post<ResumeSection, Partial<ResumeSection>>(`/resumes/${resumeId}/sections`, section);
   },
 
   updateSection(sectionId: string, section: Partial<ResumeSection>) {
-    return request<ResumeSection>(`/resumes/sections/${sectionId}`, {
-      method: "PUT",
-      body: JSON.stringify(section),
-    });
+    return apiClient.put<ResumeSection, Partial<ResumeSection>>(`/resumes/sections/${sectionId}`, section);
   },
 
   deleteSection(sectionId: string) {
-    return request<void>(`/resumes/sections/${sectionId}`, { method: "DELETE" });
+    return apiClient.delete<void>(`/resumes/sections/${sectionId}`);
   },
 
   listVersions(resumeId: string) {
-    return request<ResumeSummary[]>(`/resumes/${resumeId}/versions`);
+    return apiClient.get<ResumeSummary[]>(`/resumes/${resumeId}/versions`);
   },
 
   analyzeATS(data: { resume_id: string; job_id: string }) {
-    return request<ATSAnalysisResponse>(`/resumes/ats/analyze`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return apiClient.post<ATSAnalysisResponse, { resume_id: string; job_id: string }>(`/resumes/ats/analyze`, data);
   },
 
   tailor(data: { base_resume_id: string; target_job_id: string; name: string }) {
-    return request<TailorResponse>(`/resumes/tailor`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return apiClient.post<TailorResponse, { base_resume_id: string; target_job_id: string; name: string }>(`/resumes/tailor`, data);
   },
 };

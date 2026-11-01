@@ -16,14 +16,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
 
   async function initializeAuth() {
-    const token = localStorage.getItem("careeros_token");
+    const token = localStorage.getItem("careeros_access_token");
     if (token) {
       try {
         const currentUser = await AuthApi.me();
         setUser(currentUser);
       } catch {
         // Token invalid or expired
-        localStorage.removeItem("careeros_token");
+        localStorage.removeItem("careeros_access_token");
+        localStorage.removeItem("careeros_refresh_token");
         setUser(null);
       }
     } else {
@@ -38,7 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function login(credentials: { email: string; password: string }) {
     const response: TokenResponse = await AuthApi.login(credentials);
-    localStorage.setItem("careeros_token", response.access_token);
+    localStorage.setItem("careeros_access_token", response.access_token);
+    localStorage.setItem("careeros_refresh_token", response.refresh_token);
     const currentUser = await AuthApi.me();
     setUser(currentUser);
   }
@@ -51,7 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: userData.email,
       password: userData.password,
     });
-    localStorage.setItem("careeros_token", loginResponse.access_token);
+    localStorage.setItem("careeros_access_token", loginResponse.access_token);
+    localStorage.setItem("careeros_refresh_token", loginResponse.refresh_token);
     const currentUser = await AuthApi.me();
     setUser(currentUser);
   }
@@ -60,7 +63,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await AuthApi.logout();
     } finally {
-      localStorage.removeItem("careeros_token");
+      localStorage.removeItem("careeros_access_token");
+      localStorage.removeItem("careeros_refresh_token");
       setUser(null);
     }
   }

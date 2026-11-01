@@ -185,7 +185,10 @@ def upgrade() -> None:
         ("pk_brightspyre", "BrightSpyre", "private_board", "brightspyre", "public_page", "https://www.brightspyre.com/", "PK"),
         ("linkedin_pk", "LinkedIn — Pakistan", "private_board", "linkedin", "unsupported", "https://www.linkedin.com/jobs/", "PK"),
         ("indeed_pk", "Indeed — Pakistan", "private_board", "indeed", "unsupported", "https://pk.indeed.com/", "PK"),
-        # Remote
+        # International remote sources
+        ("remote_ok", "Remote OK", "remote", "remote_api", "api", "https://remoteok.com/", "WW"),
+        ("himalayas", "Himalayas", "remote", "himalayas_api", "api", "https://himalayas.app/", "WW"),
+        # Remote (generic/legacy)
         ("remote_generic", "Generic Remote Jobs (Pakistan-eligible)", "remote", "remote_aggregator", "unsupported", "", ""),
         # Company career pages (examples — operator adds more)
         ("company_template", "Company Career Page Template", "company_career", "company_page", "public_page", "", "PK"),

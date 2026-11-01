@@ -159,8 +159,11 @@ class RawJob:
     posted_at: Optional[datetime] = None
     closing_at: Optional[datetime] = None
     is_remote: bool = False
+    # Deprecated: use eligibility field instead (kept for test compatibility)
     is_pakistan_eligible: bool = True
+    # Single canonical three-state eligibility: eligible | ineligible | unknown
     eligibility: Optional[str] = None
+    eligibility_reason: Optional[str] = None
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -187,7 +190,9 @@ class NormalizedJob:
     province: Optional[str]
     country: str
     is_remote: bool
-    is_pakistan_eligible: bool
+    # Single canonical three-state eligibility: eligible | ineligible | unknown
+    eligibility: Optional[str]
+    eligibility_reason: Optional[str]
     salary_min: Optional[float]
     salary_max: Optional[float]
     salary_currency: Optional[str]
@@ -199,10 +204,14 @@ class NormalizedJob:
     closing_at: Optional[datetime]
     status: str
     is_active: bool
-    eligibility: Optional[str]
     raw_source_metadata: str
     content_hash: str
     normalized_hash: str
+
+    @property
+    def is_pakistan_eligible(self) -> bool:
+        """Backward compatibility: map three-state eligibility to boolean."""
+        return self.eligibility == "eligible"
 
 
 def _detect_workplace_type(text: Optional[str], explicit: Optional[str]) -> str:
@@ -276,6 +285,48 @@ def _detect_city(text: Optional[str]) -> Optional[str]:
         if city in t:
             return city.title()
     return None
+
+
+def _detect_country(text: Optional[str]) -> Optional[str]:
+    """Detect country from explicit location text without guessing."""
+    if not text:
+        return ""
+    t = text.lower()
+    
+    # Pakistan locations
+    pakistan_indicators = [
+        "pakistan", "pk", "lahore", "karachi", "islamabad", "rawalpindi", 
+        "faisalabad", "multan", "peshawar", "quetta", "sialkot", "gujranwala",
+        "punjab", "sindh", "khyber", "balochistan", "islamabad capital territory",
+        "azad jammu", "gilgit", "baltistan"
+    ]
+    if any(indicator in t for indicator in pakistan_indicators):
+        return "PK"
+    
+    # International locations
+    if any(loc in t for loc in ["united states", "usa", " u.s.", "us ", "us,", "us.", "us-", "america", "new york", "ny ", "ny,", "ny.", "ny-", "california", "ca ", "ca,", "ca.", "ca-", "texas", "tx ", "tx,", "tx.", "tx-", "florida", "fl ", "fl,", "fl.", "fl-", "washington", "wa ", "wa,", "wa.", "wa-", "illinois", "il ", "il,", "il.", "il-", "massachusetts", "ma ", "ma,", "ma.", "ma-", "boston", "chicago", "los angeles", "san francisco", "seattle", "austin", "denver"]):
+        return "US"
+    if any(loc in t for loc in ["united kingdom", "uk", "britain", "england", "london", "manchester", "birmingham"]):
+        return "GB"
+    if any(loc in t for loc in ["canada", "ca ", "ca,", "ca.", "ca-", "toronto", "vancouver", "montreal"]):
+        return "CA"
+    if any(loc in t for loc in ["australia", "au ", "au,", "au.", "au-", "sydney", "melbourne"]):
+        return "AU"
+    if any(loc in t for loc in ["germany", "de ", "de,", "de.", "de-", "berlin", "munich"]):
+        return "DE"
+    if any(loc in t for loc in ["united arab emirates", "uae", "dubai", "abu dhabi"]):
+        return "AE"
+    if any(loc in t for loc in ["saudi arabia", "saudi", "riyadh", "jeddah"]):
+        return "SA"
+    if any(loc in t for loc in ["singapore", "sg "]):
+        return "SG"
+    if any(loc in t for loc in ["malaysia", "my "]):
+        return "MY"
+    if any(loc in t for loc in ["remote worldwide", "worldwide", "anywhere", "global"]):
+        return "WW"
+    
+    # Unknown locations must not be assumed to be in Pakistan
+    return ""
 
 
 def _parse_salary(text: Optional[str]) -> tuple[Optional[float], Optional[float], Optional[str], Optional[str]]:
@@ -355,6 +406,32 @@ def normalize(raw: RawJob) -> NormalizedJob:
     import json
     raw_meta = json.dumps({"extra": raw.extra} if raw.extra else {}, ensure_ascii=False)
 
+    # Determine eligibility: prioritize explicit is_pakistan_eligible=False, 
+    # then map eligibility string, then fall back to boolean
+    raw_eligibility = raw.eligibility
+    is_pak_eligible = raw.is_pakistan_eligible
+    
+    # If explicitly set to False, use ineligible
+    if is_pak_eligible is False and raw_eligibility in (None, "Open to Pakistani citizens"):
+        eligibility = "ineligible"
+    elif raw_eligibility:
+        elig_lower = raw_eligibility.lower()
+        if any(kw in elig_lower for kw in ["eligible", "accept", "open to pak", "pakistan accepted", "pakistan welcome", "worldwide", "anywhere", "global"]):
+            eligibility = "eligible"
+        elif any(kw in elig_lower for kw in ["ineligible", "not eligible", "not accept", "restricted to", "only us", "only usa", "usa only", "us only", "uk only", "eu only", "europe only"]):
+            eligibility = "ineligible"
+        else:
+            # Unknown string, fall back to boolean
+            eligibility = "eligible" if is_pak_eligible else "ineligible"
+    else:
+        eligibility = "eligible" if is_pak_eligible else "ineligible"
+    
+    eligibility_reason = raw.eligibility_reason
+
+    # Determine country from location, not eligibility
+    # Country represents where the job is physically located
+    country_default = _detect_country(location) or ""
+
     return NormalizedJob(
         source=raw.source,
         source_job_id=raw.source_job_id,
@@ -373,9 +450,10 @@ def normalize(raw: RawJob) -> NormalizedJob:
         location=location,
         city=city,
         province=province,
-        country="PK" if raw.is_pakistan_eligible else "",
+        country=country_default,
         is_remote=is_remote,
-        is_pakistan_eligible=bool(raw.is_pakistan_eligible),
+        eligibility=eligibility,
+        eligibility_reason=eligibility_reason,
         salary_min=smin,
         salary_max=smax,
         salary_currency=scur,
@@ -387,7 +465,6 @@ def normalize(raw: RawJob) -> NormalizedJob:
         closing_at=closing,
         status="active",
         is_active=True,
-        eligibility=_safe_str(raw.eligibility, max_len=2000),
         raw_source_metadata=raw_meta,
         content_hash=content_hash,
         normalized_hash=normalized_hash,

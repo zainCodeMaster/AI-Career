@@ -1,9 +1,11 @@
 /**
  * CareerOS API client — Phase 4 Jobs.
  *
- * Thin fetch wrapper that talks to the real FastAPI backend.
- * Token is read from localStorage (set by the auth flow).
+ * Uses the centralized API client (src/api/client.ts) for consistent
+ * token handling, auto-refresh, and error handling.
  */
+
+import { apiClient } from './client';
 
 export interface JobSummary {
   id: string;
@@ -17,6 +19,8 @@ export interface JobSummary {
   country: string;
   is_remote: boolean;
   is_pakistan_eligible: boolean;
+  eligibility: 'eligible' | 'ineligible' | 'unknown' | null;
+  eligibility_reason: string | null;
   employment_type: string | null;
   workplace_type: string | null;
   category: string | null;
@@ -42,7 +46,6 @@ export interface JobDetail extends JobSummary {
   education_requirements: string | null;
   discovered_at: string;
   last_seen_at: string;
-  eligibility: string | null;
 }
 
 export interface JobListResponse {
@@ -118,29 +121,6 @@ export interface DiscoveryRunSummary {
   duration_ms: number | null;
 }
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:8000/api/v1";
-
-function getToken(): string | null {
-  if (typeof localStorage === "undefined") return null;
-  return localStorage.getItem("careeros_token");
-}
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(init.headers as Record<string, string> | undefined),
-  };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
-  }
-  if (res.status === 204) return undefined as unknown as T;
-  return (await res.json()) as T;
-}
-
 export const JobsApi = {
   list(params: Record<string, string | number | boolean | undefined> = {}) {
     const qs = new URLSearchParams();
@@ -148,47 +128,41 @@ export const JobsApi = {
       if (v === undefined || v === null || v === "") continue;
       qs.set(k, String(v));
     }
-    return request<JobListResponse>(`/jobs?${qs.toString()}`);
+    return apiClient.get<JobListResponse>(`/jobs?${qs.toString()}`);
   },
   get(jobId: string) {
-    return request<JobDetail>(`/jobs/${jobId}`);
+    return apiClient.get<JobDetail>(`/jobs/${jobId}`);
   },
   save(jobId: string, notes?: string) {
-    return request<SavedJob>(`/jobs/${jobId}/save`, {
-      method: "POST",
-      body: JSON.stringify(notes ? { notes } : {}),
-    });
+    return apiClient.post<SavedJob, { notes?: string }>(`/jobs/${jobId}/save`, notes ? { notes } : {});
   },
   unsave(jobId: string) {
-    return request<void>(`/jobs/${jobId}/save`, { method: "DELETE" });
+    return apiClient.delete<void>(`/jobs/${jobId}/save`);
   },
   saved() {
-    return request<SavedJob[]>(`/jobs/saved`);
+    return apiClient.get<SavedJob[]>(`/jobs/saved`);
   },
   sources() {
-    return request<SourceSummary[]>(`/sources`);
+    return apiClient.get<SourceSummary[]>(`/sources`);
   },
   sourceHealth() {
-    return request<{ sources: SourceHealthEntry[] }>(`/sources/health`);
+    return apiClient.get<{ sources: SourceHealthEntry[] }>(`/sources/health`);
   },
   discoveryRuns(params: { page?: number; page_size?: number; source_id?: string; status?: string } = {}) {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== '') qs.set(key, String(value));
     });
-    return request<{ items: DiscoveryRunSummary[]; total: number; page: number; page_size: number }>(`/jobs/discovery/runs?${qs.toString()}`);
+    return apiClient.get<{ items: DiscoveryRunSummary[]; total: number; page: number; page_size: number }>(`/jobs/discovery/runs?${qs.toString()}`);
   },
   getPreferences() {
-    return request<JobPreferences>(`/job-preferences`);
+    return apiClient.get<JobPreferences>(`/job-preferences`);
   },
   updatePreferences(prefs: Partial<JobPreferences>) {
-    return request<JobPreferences>(`/job-preferences`, {
-      method: "PUT",
-      body: JSON.stringify(prefs),
-    });
+    return apiClient.put<JobPreferences, Partial<JobPreferences>>(`/job-preferences`, prefs);
   },
   triggerDiscovery() {
-    return request<{
+    return apiClient.post<{
       sources_attempted: number;
       sources_succeeded: number;
       sources_failed: number;
@@ -198,6 +172,6 @@ export const JobsApi = {
       jobs_skipped: number;
       jobs_expired: number;
       error_count: number;
-    }>(`/jobs/_discovery/run`, { method: "POST" });
+    }, {}>(`/jobs/_discovery/run`, {});
   },
 };

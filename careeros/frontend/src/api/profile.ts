@@ -42,7 +42,7 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || '';
 
 function getToken(): string | null {
   if (typeof localStorage === 'undefined') return null;

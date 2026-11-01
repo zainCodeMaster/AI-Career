@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -62,6 +63,13 @@ class Settings(BaseSettings):
     match_weight_semantic: float = 0.10
     match_weight_role_title: float = 0.05
     match_candidate_pool_size: int = 200  # max jobs to score per feed request
+
+    # Phase 6 — LLM Provider (Gemini)
+    llm_provider: str = "auto"  # auto | gemini | mock
+    gemini_api_key: Optional[str] = None
+    gemini_model: str = "gemini-1.5-flash"
+    gemini_temperature: float = 0.3
+    gemini_max_tokens: int = 4096
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),

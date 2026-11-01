@@ -21,10 +21,10 @@ def get_profile(
     db: Session = Depends(get_db),
 ) -> CareerProfileResponse:
     """Get current user's career profile."""
-    profile = CareerProfileService.get_profile(db, current_user.id)
-    if not profile:
+    profile_data = CareerProfileService.get_profile_with_completeness(db, current_user.id)
+    if not profile_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-    return profile
+    return profile_data
 
 
 @router.post("", response_model=CareerProfileResponse, status_code=status.HTTP_201_CREATED)

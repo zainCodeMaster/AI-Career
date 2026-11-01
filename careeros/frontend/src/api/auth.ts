@@ -7,6 +7,7 @@
 
 export interface TokenResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
 }
 
@@ -31,71 +32,26 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
-
-function getToken(): string | null {
-  if (typeof localStorage === 'undefined') return null;
-  return localStorage.getItem('careeros_token');
-}
-
-function removeToken(): void {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.removeItem('careeros_token');
-  }
-}
-
-function getErrorDetail(text: string, status: number): string {
-  try {
-    const payload = JSON.parse(text) as { detail?: unknown };
-    if (typeof payload.detail === 'string' && payload.detail) {
-      return payload.detail;
-    }
-    if (Array.isArray(payload.detail)) {
-      return 'Please correct the highlighted fields.';
-    }
-  } catch {
-    return text || `Request failed with status ${status}.`;
-  }
-  return `Request failed with status ${status}.`;
-}
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(init.headers as Record<string, string> | undefined),
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const response = await fetch(`${API_BASE}${path}`, { ...init, headers });
-  if (!response.ok) {
-    throw new ApiError(getErrorDetail(await response.text(), response.status), response.status);
-  }
-  if (response.status === 204) return undefined as unknown as T;
-  return (await response.json()) as T;
-}
+import { apiClient } from './client';
 
 export const AuthApi = {
   register(userData: UserCreate) {
-    return request<UserResponse>('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
+    return apiClient.post<UserResponse, UserCreate>('/auth/register', userData, { skipAuth: true });
   },
 
   login(credentials: UserLogin) {
-    return request<TokenResponse>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
+    return apiClient.post<TokenResponse, UserLogin>('/auth/login', credentials, { skipAuth: true });
   },
 
   me() {
-    return request<UserResponse>('/auth/me');
+    return apiClient.get<UserResponse>('/auth/me');
   },
 
   async logout() {
-    await request<void>('/auth/logout', { method: 'POST' });
-    removeToken();
+    try {
+      await apiClient.request<void>('/auth/logout', { method: 'POST' }, { skipAuth: false });
+    } finally {
+      apiClient.logout();
+    }
   },
 };

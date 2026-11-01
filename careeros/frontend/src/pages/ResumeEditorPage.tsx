@@ -360,7 +360,7 @@ export function ResumeEditorPage() {
                       {s.section_title && <span className="text-metadata text-neutral-500 ml-2">— {s.section_title}</span>}
                       <p className="text-body-sm text-neutral-600 mt-1">{s.content}</p>
                     </div>
-                    <Button onClick={() => removeSection(s.id)} variant="destructive" size="sm">Remove</Button>
+                    <Button onClick={() => removeSection(s.id)} variant="danger" size="sm">Remove</Button>
                   </li>
                 ))}
               </ul>
@@ -372,7 +372,10 @@ export function ResumeEditorPage() {
       {tab === "ats" && (
         <div className="space-y-4">
           <Card>
-            <h3 className="text-h3 text-neutral-900 mb-3">Run ATS Analysis</h3>
+            <h3 className="text-h3 text-text-primary mb-3">Run ATS Analysis</h3>
+            <p className="text-body-sm text-text-muted mb-3">
+              Rule-based analysis comparing resume content against job keywords. Results are deterministic estimates, not AI-generated.
+            </p>
             <div className="flex gap-2">
               <Input
                 placeholder="Job ID"
@@ -440,7 +443,10 @@ export function ResumeEditorPage() {
       {tab === "tailor" && (
         <div className="space-y-4">
           <Card>
-            <h3 className="text-h3 text-neutral-900 mb-3">Tailor Resume for Job</h3>
+            <h3 className="text-h3 text-text-primary mb-3">Tailor Resume for Job</h3>
+            <p className="text-body-sm text-text-muted mb-3">
+              Rule-based tailoring that emphasizes relevant keywords and experience. Results are deterministic estimates, not AI-generated unless AI is configured in Settings.
+            </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input
                 placeholder="Target Job ID"

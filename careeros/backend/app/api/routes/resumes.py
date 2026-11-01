@@ -24,6 +24,8 @@ from app.db.models.user import User
 from app.schemas.resume import (
     ATSAnalysisRequest,
     ATSAnalysisResponse,
+    CoverLetterGenerateRequest,
+    CoverLetterResponse,
     ResumeCreate,
     ResumeListResponse,
     ResumeResponse,
@@ -42,6 +44,7 @@ from app.services.resume.ats_analyzer import ATSAnalyzer
 from app.services.resume.job_analysis import JobRequirementAnalyzer
 from app.services.resume.resume_service import ResumeService
 from app.services.resume.resume_tailorer import ResumeTailorer
+from app.services.resume.cover_letter import CoverLetterService
 
 logger = logging.getLogger("app.resume.api")
 
@@ -463,6 +466,91 @@ def tailor_resume(
         recommendations=result.recommendations,
         created_at=result.tailored_resume.created_at,
     )
+
+
+# ---------------------------------------------------------------------------
+# Cover Letter Generation
+# ---------------------------------------------------------------------------
+
+
+@router.post("/cover-letter/generate", response_model=CoverLetterResponse)
+def generate_cover_letter(
+    request: CoverLetterGenerateRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> CoverLetterResponse:
+    """Generate a job-specific cover letter from verified career data.
+    
+    The cover letter is grounded in the user's Career Profile — no achievements
+    or qualifications are invented. User should review before submitting.
+    """
+    # Verify the job exists
+    job = db.get(Job, request.job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found",
+        )
+
+    # Optional resume reference
+    resume = None
+    if request.resume_id:
+        resume = _get_resume_or_404(db, current_user.id, request.resume_id)
+
+    result = CoverLetterService.generate_cover_letter(
+        db, current_user.id, job, resume
+    )
+
+    create_audit_log(
+        db,
+        event_type="COVER_LETTER_GENERATED",
+        user_id=current_user.id,
+        details={
+            "job_id": str(request.job_id),
+            "resume_id": request.resume_id,
+        },
+    )
+
+    return CoverLetterResponse(
+        cover_letter=result.cover_letter,
+        user_name=result.user_name,
+        job_title=result.job_title,
+        company_name=result.company_name,
+        grounded_skills=result.grounded_skills,
+        grounded_experience=result.grounded_experience,
+        factuality_notes=result.factuality_notes,
+        generated_at=datetime.now(timezone.utc),
+    )
+
+
+@router.get("/cover-letter/export")
+def export_cover_letter(
+    job_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Export a cover letter as plain text."""
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found",
+        )
+
+    resume = None  # No resume passed for export - regenerate
+    result = CoverLetterService.generate_cover_letter(
+        db, current_user.id, job, resume
+    )
+
+    filename = f"cover_letter_{job.title.replace(' ', '_').lower()}_{job.company_name or 'company'}.txt".replace("/", "_").replace("\\", "_")
+
+    return Response(
+        content=result.cover_letter,
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 
 
 # ---------------------------------------------------------------------------

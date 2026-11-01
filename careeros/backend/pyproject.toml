@@ -45,6 +45,7 @@ dependencies = [
     "pytest-asyncio>=0.23,<1.0",
     "pgvector>=0.3,<1.0",
     "numpy>=1.26,<3.0",
+    "google-genai>=1.0,<2.0",
 ]
 
 [project.optional-dependencies]

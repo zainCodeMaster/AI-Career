@@ -53,6 +53,7 @@ class CareerProfileResponse(_UUIDAwareResponse, CareerProfileBase):
     user_id: str
     created_at: datetime
     updated_at: datetime
+    completeness_score: Optional[int] = None
 
 
 class EducationBase(BaseModel):

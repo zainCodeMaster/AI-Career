@@ -1,3 +1,5 @@
+import { apiClient } from './client';
+
 export interface CareerRecord {
   id: string;
   user_id: string;
@@ -42,45 +44,24 @@ export interface Certification extends CareerRecord {
   description: string | null;
 }
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('careeros_token');
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers || {}),
-    },
-  });
-  if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`);
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
-}
-
-function jsonBody<T extends object>(data: T): RequestInit {
-  return { method: 'POST', body: JSON.stringify(data) };
-}
-
 export const CareerApi = {
-  listSkills: () => request<Skill[]>('/skills'),
-  createSkill: (data: Omit<Skill, keyof CareerRecord>) => request<Skill>('/skills', jsonBody(data)),
-  updateSkill: (id: string, data: Partial<Omit<Skill, keyof CareerRecord>>) => request<Skill>(`/skills/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteSkill: (id: string) => request<void>(`/skills/${id}`, { method: 'DELETE' }),
+  listSkills: () => apiClient.get<Skill[]>('/skills'),
+  createSkill: (data: Omit<Skill, keyof CareerRecord>) => apiClient.post<Skill, Omit<Skill, keyof CareerRecord>>('/skills', data),
+  updateSkill: (id: string, data: Partial<Omit<Skill, keyof CareerRecord>>) => apiClient.put<Skill, Partial<Omit<Skill, keyof CareerRecord>>>(`/skills/${id}`, data),
+  deleteSkill: (id: string) => apiClient.delete<void>(`/skills/${id}`),
 
-  listEducation: () => request<Education[]>('/education'),
-  createEducation: (data: Omit<Education, keyof CareerRecord>) => request<Education>('/education', jsonBody(data)),
-  updateEducation: (id: string, data: Partial<Omit<Education, keyof CareerRecord>>) => request<Education>(`/education/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteEducation: (id: string) => request<void>(`/education/${id}`, { method: 'DELETE' }),
+  listEducation: () => apiClient.get<Education[]>('/education'),
+  createEducation: (data: Omit<Education, keyof CareerRecord>) => apiClient.post<Education, Omit<Education, keyof CareerRecord>>('/education', data),
+  updateEducation: (id: string, data: Partial<Omit<Education, keyof CareerRecord>>) => apiClient.put<Education, Partial<Omit<Education, keyof CareerRecord>>>(`/education/${id}`, data),
+  deleteEducation: (id: string) => apiClient.delete<void>(`/education/${id}`),
 
-  listExperience: () => request<WorkExperience[]>('/experience'),
-  createExperience: (data: Omit<WorkExperience, keyof CareerRecord>) => request<WorkExperience>('/experience', jsonBody(data)),
-  updateExperience: (id: string, data: Partial<Omit<WorkExperience, keyof CareerRecord>>) => request<WorkExperience>(`/experience/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteExperience: (id: string) => request<void>(`/experience/${id}`, { method: 'DELETE' }),
+  listExperience: () => apiClient.get<WorkExperience[]>('/experience'),
+  createExperience: (data: Omit<WorkExperience, keyof CareerRecord>) => apiClient.post<WorkExperience, Omit<WorkExperience, keyof CareerRecord>>('/experience', data),
+  updateExperience: (id: string, data: Partial<Omit<WorkExperience, keyof CareerRecord>>) => apiClient.put<WorkExperience, Partial<Omit<WorkExperience, keyof CareerRecord>>>(`/experience/${id}`, data),
+  deleteExperience: (id: string) => apiClient.delete<void>(`/experience/${id}`),
 
-  listCertifications: () => request<Certification[]>('/certifications'),
-  createCertification: (data: Omit<Certification, keyof CareerRecord>) => request<Certification>('/certifications', jsonBody(data)),
-  updateCertification: (id: string, data: Partial<Omit<Certification, keyof CareerRecord>>) => request<Certification>(`/certifications/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteCertification: (id: string) => request<void>(`/certifications/${id}`, { method: 'DELETE' }),
+  listCertifications: () => apiClient.get<Certification[]>('/certifications'),
+  createCertification: (data: Omit<Certification, keyof CareerRecord>) => apiClient.post<Certification, Omit<Certification, keyof CareerRecord>>('/certifications', data),
+  updateCertification: (id: string, data: Partial<Omit<Certification, keyof CareerRecord>>) => apiClient.put<Certification, Partial<Omit<Certification, keyof CareerRecord>>>(`/certifications/${id}`, data),
+  deleteCertification: (id: string) => apiClient.delete<void>(`/certifications/${id}`),
 };

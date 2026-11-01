@@ -1,25 +1,47 @@
+import { HTMLAttributes, forwardRef } from 'react';
 import { cn } from '../../lib/utils';
+import { Button } from './Button';
+import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
-interface ErrorStateProps {
+interface ErrorStateProps extends HTMLAttributes<HTMLDivElement> {
   title?: string;
   message: string;
   onRetry?: () => void;
-  className?: string;
+  retryLabel?: string;
+  showHomeLink?: boolean;
 }
 
-export function ErrorState({ title = 'Something went wrong', message, onRetry, className }: ErrorStateProps) {
-  return (
-    <div className={cn('rounded-md border border-error-light bg-error-light p-4', className)}>
-      <p className="text-body font-medium text-error-dark">{title}</p>
-      <p className="text-body-sm text-error mt-1">{message}</p>
-      {onRetry && (
-        <button
-          onClick={onRetry}
-          className="mt-3 inline-flex items-center rounded-md border border-error px-3 py-1.5 text-body-sm text-error hover:bg-error-light focus:outline-none focus:ring-2 focus:ring-error focus:ring-offset-2"
-        >
-          Try again
-        </button>
-      )}
-    </div>
-  );
-}
+export const ErrorState = forwardRef<HTMLDivElement, ErrorStateProps>(
+  ({ className, title = 'Something went wrong', message, onRetry, retryLabel = 'Try again', showHomeLink = true, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn('card p-6 text-center max-w-md mx-auto', className)}
+        role="alert"
+        {...props}
+      >
+        <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle size={24} className="text-error" aria-hidden="true" />
+        </div>
+        <h3 className="text-h3 text-text-primary mb-2">{title}</h3>
+        <p className="text-body text-text-muted mb-6">{message}</p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          {onRetry && (
+            <Button variant="primary" onClick={onRetry}>
+              <RefreshCw size={18} className="mr-2" />
+              {retryLabel}
+            </Button>
+          )}
+          {showHomeLink && (
+            <a href="/dashboard" className="btn btn-secondary">
+              <Home size={18} className="mr-2" />
+              Go to Dashboard
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+);
+
+ErrorState.displayName = 'ErrorState';

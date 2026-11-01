@@ -21,6 +21,7 @@ from app.db.models.work_experience import WorkExperience
 from app.services.chunker import TextChunker
 from app.services.document_builder import CareerDocumentBuilder, CareerDocument
 from app.services.embeddings import get_embedding_provider
+from app.services.llm import get_llm_provider, LLMResponse
 from app.services.vector_store import StoredVector, get_vector_store
 
 
@@ -221,3 +222,110 @@ class RAGContextBuilder:
             lines.append("")
 
         return "\n".join(lines).strip()
+
+
+# ---------------------------------------------------------------------------
+# LLM Answer Generator
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RAGAnswer:
+    """A generated answer with source citations."""
+
+    answer: str
+    sources: list[RetrievedChunk]
+    model: str
+    confidence: str  # "high" | "medium" | "low"
+    warning: str | None = None
+
+
+class CareerBrainAnswerGenerator:
+    """Generate answers using LLM with retrieved career context."""
+
+    def __init__(self) -> None:
+        self._llm = get_llm_provider()
+
+    def generate_answer(
+        self,
+        query: str,
+        context: str,
+        chunks: Sequence[RetrievedChunk],
+    ) -> RAGAnswer:
+        """Generate an answer using the LLM with retrieved context.
+
+        If LLM is not configured, returns a deterministic fallback.
+        """
+        # Check if LLM is available (not mock)
+        is_mock = getattr(self._llm, "model_name", "mock") == "mock"
+
+        if is_mock:
+            # Deterministic fallback: return context summary with warning
+            return RAGAnswer(
+                answer=(
+                    "AI answer generation is not configured. "
+                    "Below is the relevant information from your career profile:\n\n"
+                    + context
+                    + "\n\nNote: This is a deterministic retrieval, not an AI-generated answer. "
+                    "Set GEMINI_API_KEY to enable AI-powered answers."
+                ),
+                sources=list(chunks),
+                model="deterministic-fallback",
+                confidence="low",
+                warning="LLM not configured. Using deterministic retrieval fallback.",
+            )
+
+        # Build prompt for LLM
+        prompt = self._build_prompt(query, context)
+
+        try:
+            response: LLMResponse = self._llm.generate(prompt)
+            answer_text = response.text.strip()
+
+            # Assess confidence based on whether context was found
+            if not chunks:
+                confidence = "low"
+            elif len(chunks) >= 3:
+                confidence = "high"
+            else:
+                confidence = "medium"
+
+            return RAGAnswer(
+                answer=answer_text,
+                sources=list(chunks),
+                model=response.model,
+                confidence=confidence,
+                warning=None if confidence != "low" else "Limited context available for this query.",
+            )
+        except Exception as exc:
+            # Fallback on error
+            return RAGAnswer(
+                answer=(
+                    f"Error generating AI answer: {exc}. "
+                    "Here is the retrieved context:\n\n"
+                    + context
+                ),
+                sources=list(chunks),
+                model="error-fallback",
+                confidence="low",
+                warning=f"AI generation failed: {exc}",
+            )
+
+    def _build_prompt(self, query: str, context: str) -> str:
+        """Build the prompt for the LLM."""
+        return f"""You are CareerOS AI, an intelligent career assistant. Answer the user's question based ONLY on the provided career context.
+
+CAREER CONTEXT:
+{context}
+
+USER QUESTION: {query}
+
+INSTRUCTIONS:
+1. Answer ONLY using information from the career context above.
+2. If the context doesn't contain enough information to answer, say so clearly.
+3. Do NOT invent or hallucinate information not in the context.
+4. Be specific and cite relevant details from the context.
+5. Keep your answer concise but comprehensive.
+6. If asked for recommendations, base them on the user's actual profile data.
+
+ANSWER:"""

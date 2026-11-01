@@ -289,5 +289,26 @@ class ResumeListResponse(BaseModel):
     has_prev: bool
 
 
+class CoverLetterGenerateRequest(BaseModel):
+    """Request to generate a cover letter for a job."""
+    
+    job_id: str
+    resume_id: Optional[str] = None  # Optional resume to base content on
+    user_name: Optional[str] = None  # Override name if profile data insufficient
+
+
+class CoverLetterResponse(BaseModel):
+    """Response from cover letter generation."""
+    
+    cover_letter: str
+    user_name: str
+    job_title: str
+    company_name: str
+    grounded_skills: List[str] = []
+    grounded_experience: List[str] = []
+    factuality_notes: List[str] = []
+    generated_at: datetime
+
+
 # Update forward references
 ResumeResponse.model_rebuild()

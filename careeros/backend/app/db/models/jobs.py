@@ -124,6 +124,7 @@ class Job(Base):
     province: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     country: Mapped[str] = mapped_column(String(2), nullable=False, default="PK", index=True)
     is_remote: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Deprecated: use eligibility field instead (kept for backward compatibility)
     is_pakistan_eligible: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, index=True
     )
@@ -152,7 +153,15 @@ class Job(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
 
     # Eligibility / provenance
-    eligibility: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Single canonical three-state eligibility: eligible | ineligible | unknown
+    eligibility: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True, index=True,
+        # "eligible" | "ineligible" | "unknown"
+    )
+    eligibility_reason: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True,
+        # Human-readable reason for eligibility status
+    )
 
     # Hashes for deduplication
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)

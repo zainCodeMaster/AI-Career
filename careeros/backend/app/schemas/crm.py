@@ -833,6 +833,54 @@ class ActivityFeedResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Notification Schemas
+# ---------------------------------------------------------------------------
+
+
+class NotificationTypeResponse(str, PyEnum):
+    INTERVIEW_REMINDER = "interview_reminder"
+    FOLLOW_UP_REMINDER = "follow_up_reminder"
+    APPLICATION_STATUS_CHANGED = "application_status_changed"
+    JOB_MATCH = "job_match"
+    SYSTEM = "system"
+    CAREER_BRAIN = "career_brain"
+
+
+class NotificationResponse(BaseModel):
+    """Notification payload."""
+
+    id: str
+    user_id: str
+    type: NotificationTypeResponse
+    title: str
+    message: str
+    read: bool
+    target_url: Optional[str] = None
+    created_at: datetime
+    read_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NotificationListResponse(BaseModel):
+    """Paginated notification list."""
+
+    items: List[NotificationResponse]
+    total: int
+    page: int
+    page_size: int
+    unread_count: int
+
+
+class MarkReadRequest(BaseModel):
+    """Mark notification(s) as read."""
+
+    notification_ids: List[str]
+    mark_all: bool = False
+
+
+# ---------------------------------------------------------------------------
 # Forward references
 # ---------------------------------------------------------------------------
 
@@ -847,3 +895,5 @@ OfferResponse.model_rebuild()
 RejectionResponse.model_rebuild()
 RecommendationResponse.model_rebuild()
 UserCompanyLinkResponse.model_rebuild()
+NotificationResponse.model_rebuild()
+

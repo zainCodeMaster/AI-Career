@@ -55,6 +55,10 @@ from app.schemas.crm import (
     InterviewCreate,
     InterviewResponse,
     InterviewUpdate,
+    MarkReadRequest,
+    NotificationListResponse,
+    NotificationResponse,
+    NotificationTypeResponse,
     OfferCreate,
     OfferResponse,
     OfferUpdate,
@@ -75,6 +79,7 @@ from app.services.crm.company_service import CompanyService
 from app.services.crm.dashboard import DashboardService
 from app.services.crm.followup_service import FollowUpService
 from app.services.crm.interview_service import InterviewService
+from app.services.crm.notification_service import NotificationService
 from app.services.crm.offer_service import OfferService, RejectionService
 from app.services.crm.recommendations import RecommendationService
 from app.services.crm.state_machine import ApplicationStateMachine
@@ -1072,3 +1077,57 @@ def list_activities(
         db, current_user.id, application_id=application_id, event_type=evt_type, page=page, page_size=page_size
     )
     return ActivityFeedResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+# ---------------------------------------------------------------------------
+# Notifications
+# ---------------------------------------------------------------------------
+
+
+@router.get("/notifications", response_model=NotificationListResponse)
+def list_notifications(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    unread_only: bool = Query(default=False),
+    current_user=Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> NotificationListResponse:
+    """List notifications for the current user."""
+    result = NotificationService.list_notifications(
+        db, current_user.id, page=page, page_size=page_size, unread_only=unread_only
+    )
+    return NotificationListResponse(
+        items=[NotificationResponse.model_validate(i) for i in result["items"]],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+        unread_count=result["unread_count"],
+    )
+
+
+@router.post("/notifications/mark-read")
+def mark_notifications_read(
+    request: MarkReadRequest,
+    current_user=Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Mark notification(s) as read."""
+    count = NotificationService.mark_read(
+        db, current_user.id,
+        notification_ids=[UUID(nid) for nid in request.notification_ids] if request.notification_ids else None,
+        mark_all=request.mark_all,
+    )
+    return {"marked_read": count}
+
+
+@router.delete("/notifications/{notification_id}")
+def delete_notification(
+    notification_id: UUID,
+    current_user=Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Delete a notification."""
+    deleted = NotificationService.delete_notification(db, current_user.id, notification_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
+    return {"deleted": True}

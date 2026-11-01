@@ -1,0 +1,104 @@
+# CareerOS AI Docker Compose
+# Development and production deployment
+
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------
+  # Backend API (FastAPI + Gunicorn)
+  # ---------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: careeros-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://careeros:careeros@db:5432/careeros
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-min-32-chars}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - FRONTEND_URL=http://localhost:5173
+      - LLM_PROVIDER=auto
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=gemini-1.5-flash
+      - GEMINI_TEMPERATURE=0.3
+      - GEMINI_MAX_TOKENS=4096
+      - VECTOR_STORE_BACKEND=pgvector
+      - LOG_LEVEL=INFO
+    volumes:
+      - backend_data:/app/data
+      - backend_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - careeros-network
+
+  # ---------------------------------------------------------------
+  # Frontend (React + Nginx)
+  # ---------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: careeros-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - backend
+    networks:
+      - careeros-network
+
+  # ---------------------------------------------------------------
+  # Database (PostgreSQL + pgvector)
+  # ---------------------------------------------------------------
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: careeros-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=careeros
+      - POSTGRES_PASSWORD=careeros
+      - POSTGRES_DB=careeros
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careeros -d careeros"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - careeros-network
+
+  # ---------------------------------------------------------------
+  # Redis (optional - for future background job infrastructure)
+  # ---------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: careeros-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - careeros-network
+
+volumes:
+  db_data:
+  backend_data:
+  backend_uploads:
+  redis_data:
+
+networks:
+  careeros-network:
+    driver: bridge

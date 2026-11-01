@@ -128,7 +128,14 @@ class GovernmentSource(BaseJobSource):
                     posted_at=posted_at,
                     closing_at=closing_at,
                     is_remote=False,
-                    is_pakistan_eligible=True,
+                    eligibility=self._determine_eligibility({
+                        "country": location or "",
+                        "workplace_type": "onsite",
+                    })[0],
+                    eligibility_reason=self._determine_eligibility({
+                        "country": location or "",
+                        "workplace_type": "onsite",
+                    })[1],
                 ))
             except Exception as exc:
                 logger.warning("Source %s: failed to parse job item: %s", self.source_id, exc)
@@ -136,9 +143,49 @@ class GovernmentSource(BaseJobSource):
 
         return jobs
 
-    def _get_company_name(self) -> str:
-        """Return the company/organization name for this source."""
-        return self.name.split("—")[-1].strip() if self.name else self.source_id
+    def _determine_eligibility(self, job_data: dict, detail_data: Optional[dict] = None) -> tuple[str, str]:
+        """Determine Pakistan eligibility based on job location and restrictions.
+
+        Returns (eligibility_status, reason) where status is one of:
+        - "eligible": Pakistan applicants are accepted or no restrictions
+        - "ineligible": Work authorization/visa restrictions prevent Pakistani applicants
+        - "unknown": Insufficient information to determine
+        """
+        # Check country field first
+        country = job_data.get("country", "") or ""
+        if country:
+            country_upper = country.upper()
+            # Explicit Pakistan → eligible
+            if country_upper == "PK":
+                return "eligible", "Country is Pakistan"
+            # Explicit USA/Canada/UK/Australia restrictions → ineligible for PK applicants
+            restricted_countries = {"US", "CA", "GB", "AU"}
+            if country_upper in restricted_countries:
+                return "ineligible", f"Country restriction: {country} applicants not accepted"
+            # Other country restrictions → unknown unless remote
+            return "unknown", f"Country restriction: {country}"
+        
+        # Check workplace type
+        workplace_type = job_data.get("workplace_type", "") or ""
+        if workplace_type == "remote":
+            # Remote worldwide → potentially eligible
+            location = (detail_data or {}).get("location", "") or ""
+            if location:
+                # Check if remote has location restrictions
+                location_upper = location.upper()
+                if any(loc in location_upper for loc in ["USA", "CA", "GB", "AU"]):
+                    return "ineligible", f"Remote position restricted to {location}"
+            return "eligible", "Remote worldwide"
+        
+        # Check for explicit Pakistan eligibility text in description
+        description = (detail_data or {}).get("description", "") or ""
+        desc_lower = description.lower()
+        pakistan_keywords = ["pakistan applicants", "pakistan based", "local candidates", "open to pk"]
+        if any(kw in desc_lower for kw in pakistan_keywords):
+            return "eligible", "Explicit Pakistan applicants accepted"
+        
+        # No clear restrictions but also no evidence → unknown
+        return "unknown", "Eligibility cannot be determined from available data"
 
     def _parse_detail_description(self, soup: BeautifulSoup) -> Optional[str]:
         """Override in subclass to extract description from detail page."""

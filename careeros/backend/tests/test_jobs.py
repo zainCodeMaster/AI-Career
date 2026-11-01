@@ -239,7 +239,7 @@ class TestNormalization:
     def test_non_pakistan_job(self):
         norm = normalize(_make_raw(is_pakistan_eligible=False, location="New York"))
         assert norm.is_pakistan_eligible is False
-        assert norm.country == ""
+        assert norm.country == "US"
 
     def test_helper_hashes(self):
         h1 = compute_content_hash(_make_raw())

@@ -7,7 +7,7 @@ import { render } from '@testing-library/react';
 describe('Career data page', () => {
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem('careeros_token', 'mock-token');
+    localStorage.setItem('careeros_access_token', 'mock-token');
     vi.stubGlobal('fetch', vi.fn());
   });
 
